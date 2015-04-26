@@ -1,0 +1,80 @@
+---
+title: "The Course Project in Practical Machine Learning"
+author: "Atsuko Yamamoto"
+date: "April 26, 2015"
+output: html_document
+---
+## Executive Summary
+This is the Course Project for the class "Practical Machine Learning".
+In this report, I predict the manner using the exercise data from accelerometers on the belt, forearm, arm and dumbell of  6 participants.
+I build the prediction model to predict the objective variable "classe".
+
+## Result
+I use caret with random forest as my model with 5 fold cross validation. 
+The model is mtry : 27, accuracy : 0.99, OOB estimate of  error rate is less than 1%. 
+
+Predictions of testing:
+B A B A A E D B A A B C B A E E A B B B
+
+### Data preprocessing
+```{r,echo=FALSE}
+setwd("~/Rdata/MachineLearning/Projects")
+```
+
+```{r loading}
+# loading data
+temp <- tempfile()
+urltrain="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+urltest="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(urltrain,temp,"curl")
+pmltrain <- read.csv(temp)
+download.file(urltest,temp,"curl")
+pmltest <- read.csv(temp)
+dim(pmltrain);dim(pmltest)
+# summary(pmltrain)
+```
+There are a lot of missing values in csvfiles.
+I get rid of the clumns that are independent of exercizes and mostly NA.
+```{r Cleaning}
+# Cleaning the data
+pmldata <- pmltrain[,-1:-7]
+naCnt <- apply(pmldata,2,function(x) {sum(is.na(x)|x=="")})
+pmldata <- pmldata[,which(naCnt < 19216)]
+dim(pmldata)
+```
+
+### Data splitting
+Devide the pmldata between training and testing.
+```{r splitting}
+library(caret)
+set.seed(1000)
+inTrain <- createDataPartition(y=pmldata$classe, p=0.6, list=FALSE)
+training <- pmldata[inTrain,]
+testing <- pmldata[-inTrain,]
+dim(training); dim(testing)
+```
+
+### Training
+I use caret with random forest as my model with 5 fold cross validation. Because random forests are usually one of the top performing algorithms along with boosting in any prediction contests.
+```{r training}
+rfmodel <- train(classe ~ .,method="rf", data=training,
+                 trControl=trainControl(method="cv", number=5),
+                 prox=TRUE, allowParallel=TRUE)
+rfmodel
+rfmodel$finalModel
+```
+
+```{r predicting}
+pred <- predict(rfmodel, testing)
+table(pred, testing$classe)
+```
+The model is mtry = 27, and accuracy is 0.99.
+OOB estimate of  error rate is less than 1%. 
+That is a good model.
+
+### Predictions of testing
+I use my prediction model to predict 20 different test cases.
+```{r predictingtest}
+answers <- predict(rfmodel, pmltest)
+answers
+```
